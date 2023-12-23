@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Práctica de Escritura</title>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
+
+    
+    <style>
+        /* Estilos personalizados para centrar el contenido */
+        .center-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 24vh;
+        }
+
+        /* Estilo para el encabezado (top) */
+        .header {
+            background-color: #007BFF;
+            color: #fff;
+            padding: 10px 0;
+            text-align: center;
+        }
+
+        /* Estilo para el pie de página (bottom) */
+        .footer {
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            padding: 10px 0;
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+        }
+
+        /* Estilo para el contenedor de palabra y canvas */
+        #palabraContainer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            /* Agrega posición relativa para que el canvas esté contenido */
+        }
+
+        /* Estilo para la palabra */
+        #palabra {
+            font-size: 8rem;
+            /* Tamaño de fuente grande */
+            font-weight: bold;
+            /* Texto en negrita */
+            user-select: none;
+            /* Evita la selección de texto */
+        }
+
+        /* Estilo para el canvas */
+        #canvas-container {
+            position: fixed;
+            top: 18%;
+            /* Ajusta la distancia desde la parte superior */
+            left: 50%;
+            /* Centra horizontalmente */
+            transform: translate(-50%, 0);
+            /* Centra exactamente horizontalmente */
+            z-index: 1;
+            /* Asegura que el canvas esté sobre las letras aleatorias */
+            border: 1px solid black;
+            /* Agrega un borde al canvas */
+            width: 25%;
+            touch-action: none;
+            /* Evita el comportamiento predeterminado de desplazamiento en dispositivos táctiles */
+        }
+
+        /* Estilo para letras seleccionadas */
+        .seleccionado {
+            background-color: yellow;
+            /* Cambia el color de fondo al seleccionar */
+        }
+
+        /* Estilos para dispositivos móviles (ancho máximo de 768px) */
+        @media screen and (max-width: 768px) {
+            #canvas-container {
+                width: 100%;
+                /* En pantallas de hasta 768px de ancho, el ancho es del 100% */
+            }
+
+            #canvas {
+                width: 100%;
+                /* En pantallas de hasta 768px de ancho, el ancho es del 100% */
+            }
+        }
+
+
+        .estrellas-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: -1000;
+            animation: fadeInOut 3s ease-in-out; /* Ajusta la duración de la animación */
+            opacity: 0; /* Agrega opacidad inicial para la animación */
+        }
+
+        .estrella {
+            color: yellow;
+            font-size: 2rem;
+            position: absolute;
+            animation: moverArriba 4s ease-in-out; /* Ajusta la duración de la animación */
+        }
+
+        @keyframes moverArriba {
+            0% { transform: translate(-50%, -50%); }
+            70% { transform: translate(-50%, -600%); } /* Ajusta la posición final antes de desaparecer */
+            100% { transform: translate(-50%, -700%); } /* Ajusta la posición final antes de desaparecer */
+        }
+
+
+
+
+    </style>
+</head>
+
+<body>
+    <!-- Encabezado (Top) -->
+    <div class="header">
+        <h1 class="display-5 fw-bold">Mi Caligrafía</h1>
+    </div>
+
+    <main>
+        <div class="container mt-5">
+            <div class="row">
+                <div class="col-12 col-md-4 offset-md-4 center-content">
+                    <div id="palabraContainer" style="top: -20px;">
+                        <h2 id="palabra"></h2>
+                        <div id="canvas-container">
+                            <!-- Contenedor para el canvas -->
+                            <canvas id="canvas"></canvas>
+                            <!-- Agregar el canvas -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-3">
+            <button class="btn btn-primary" id="calificar" onclick="enviarTrazoAlServidor()">Calificar</button>
+        </div>
+
+        <div class="text-center mt-3">
+            <button class="btn btn-primary" id="nuevaPalabra" onclick="nuevaPalabraAleatoria()">Nueva Palabra</button>
+        </div>
+    </main>
+
+    <!-- Pie de página (Bottom) -->
+    <div class="footer">
+        <p>UPAO © 2023 - Juan Manuel Alvarado.</p>
+    </div>
+
+    <!-- Menú para seleccionar fuentes -->
+    <div class="container mt-3">
+        <label for="fontSelector">Selecciona una fuente:</label>
+        <select id="fontSelector" class="form-select" onchange="cambiarFuente()">
+            <option value="default">Fuente Predeterminada</option>
+        </select>
+
+        <div class="mt-3">
+            <label for "fontSizeSlider">Tamaño de fuente:</label>
+            <input type="range" id="fontSizeSlider" min="150" max="250" value="8" step="1"
+                oninput="cambiarTamanioFuente()">
+        </div>
+    </div>
+
+    <script>
+        var fontSizeForSaving = 80; // Puedes ajustar este valor según sea necesario
+        var palabras = ["gato", "perro", "casa", "sol", "flor"];
+        var palabraActual = "";
+        var palabraElement = document.getElementById("palabra");
+        var nuevaPalabraButton = document.getElementById("nuevaPalabra");
+        var fontSelector = document.getElementById("fontSelector");
+        var fontSizeSlider = document.getElementById("fontSizeSlider");
+        var fontSize = 8; // Tamaño de fuente inicial
+        var canvasContainer = document.getElementById("canvas-container");
+        var canvas = document.getElementById("canvas");
+        var ctx = canvas.getContext("2d");
+
+        // Define variables para las secuencias de trazos del usuario y las letras aleatorias
+        let sequenceUser = [];
+        let sequenceRandom = [];
+
+        // Define el umbral de similitud DTW
+        const umbralSimilitud = 100; // Ajusta según tus necesidades
+
+        function cargarFuentes() {
+            var fontsFolder = '/static/font/';
+            var fonts = ['Dancing.ttf', 'AnandaBlackPersonalUse.ttf', 'Tangerine-Bold.ttf'];
+
+            fonts.forEach(function (font) {
+                var option = document.createElement('option');
+                option.value = fontsFolder + font;
+                option.textContent = font.split('.')[0];
+                fontSelector.appendChild(option);
+            });
+        }
+
+        function cambiarTamanioFuente() {
+            fontSize = fontSizeSlider.value;
+            palabraElement.style.fontSize = fontSize + "px";
+            guardarImagenAutomaticamente();
+        }
+
+        function cambiarFuente() {
+            var selectedFont = fontSelector.value;
+            if (selectedFont !== "default") {
+                var fontUrl = selectedFont;
+                var fontName = fontUrl.split('/').pop().split('.').shift();
+
+                // Define la fuente personalizada
+                var newFont = new FontFace('MiFuente', `url(${fontUrl}) format('truetype')`);
+                newFont.load().then(function (loadedFace) {
+                    return document.fonts.add(loadedFace);
+                }).then(function () {
+                    palabraElement.style.fontFamily = 'MiFuente';
+                    guardarImagenAutomaticamente();
+                }).catch(function (error) {
+                    console.error('Error cargando la fuente:', error);
+                });
+            } else {
+                palabraElement.style.fontFamily = 'Tangerine-Bold';
+                guardarImagenAutomaticamente();
+            }
+        }
+
+        function nuevaPalabraAleatoria() {
+            reiniciarCanvas();
+            var indice = Math.floor(Math.random() * palabras.length);
+            palabraActual = palabras[indice];
+            palabraElement.textContent = palabraActual;
+            guardarImagenAutomaticamente();
+        }
+
+        function reiniciarCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            sequenceUser = [];
+        }
+
+        function cargarTamanioFuenteParaGuardar() {
+            var estilo = window.getComputedStyle(palabraElement);
+            fontSizeForSaving = parseInt(estilo.fontSize);
+        }
+
+        window.addEventListener('load', function () {
+            cargarFuentes();
+            nuevaPalabraAleatoria();
+            cargarTamanioFuenteParaGuardar();
+        });
+
+        fontSelector.addEventListener('change', cambiarFuente);
+
+        canvas.addEventListener("mousedown", iniciarDibujo);
+        canvas.addEventListener("touchstart", iniciarDibujo);
+        canvas.addEventListener("mouseup", detenerDibujo);
+        canvas.addEventListener("touchend", detenerDibujo);
+        canvas.addEventListener("mousemove", dibujar);
+        canvas.addEventListener("touchmove", dibujar);
+
+        let dibujando = false;
+
+        function iniciarDibujo(e) {
+            dibujando = true;
+            ctx.beginPath();
+            if (e.type === "touchstart") {
+                let touch = e.touches[0];
+                ctx.moveTo(touch.clientX - canvas.getBoundingClientRect().left, touch.clientY - canvas.getBoundingClientRect().top);
+            } else {
+                ctx.moveTo(e.offsetX, e.offsetY);
+            }
+        }
+
+        function detenerDibujo() {
+            dibujando = false;
+        }
+
+        function dibujar(e) {
+            if (!dibujando) return;
+
+            ctx.lineWidth = 8;
+            ctx.strokeStyle = "rgba(188, 188, 188, 0.4)";
+            ctx.lineCap = "round";
+
+            if (e.type === "touchmove") {
+                let touch = e.touches[0];
+                ctx.lineTo(touch.clientX - canvas.getBoundingClientRect().left, touch.clientY - canvas.getBoundingClientRect().top);
+            } else {
+                ctx.lineTo(e.offsetX, e.offsetY);
+            }
+
+            ctx.stroke();
+            sequenceUser.push([e.offsetX, e.offsetY]);
+        }
+
+        function guardarImagenAutomaticamente() {
+            var textoActual = palabraElement.textContent;
+            var canvasTemp = document.createElement('canvas');
+            var ctxTemp = canvasTemp.getContext('2d');
+            canvasTemp.width = 300;
+            canvasTemp.height = 100;
+
+            // Establece el tamaño de fuente para el canvas temporal
+            ctxTemp.font = fontSizeForSaving + 'px ' + window.getComputedStyle(palabraElement).fontFamily;
+
+            ctxTemp.fillStyle = 'black';
+            ctxTemp.textAlign = 'center';
+            ctxTemp.textBaseline = 'middle';
+            ctxTemp.fillText(textoActual, canvasTemp.width / 2, canvasTemp.height / 2);
+
+            // Ajusta el tamaño de la fuente para la imagen guardada
+            var fontSizeOriginal = ctxTemp.font;
+            ctxTemp.font = fontSizeForSaving + 'px ' + window.getComputedStyle(palabraElement).fontFamily;
+
+            var imageData = canvasTemp.toDataURL('image/png');
+
+            // Restaura el tamaño de fuente original
+            ctxTemp.font = fontSizeOriginal;
+
+    // Asegurémonos de que la posición sea consistente
+    var canvasFinal = document.createElement('canvas');
+    var ctxFinal = canvasFinal.getContext('2d');
+    canvasFinal.width = 300;
+    canvasFinal.height = 100;
+
+    ctxFinal.drawImage(canvasTemp, 0, 0);
+
+    // Guarda la imagen con posición consistente
+    var finalImageData = canvasFinal.toDataURL('image/png');
+
+    $.ajax({
+        type: 'POST',
+        url: '/guardar_imagen',
+        data: { 'image_data': finalImageData },
+        success: function (response) {
+            console.log(response);
+        },
+        error: function (xhr, textStatus, errorThrown) {
+            console.error("Error al guardar la imagen:", textStatus, errorThrown);
+        }
+    });
+}
+
+
+
+function enviarTrazoAlServidor() {
+    if (sequenceUser.length === 0) {
+        // Muestra una notificación indicando que primero se debe crear un trazo
+        Swal.fire({
+            icon: 'warning',
+            title: 'Advertencia',
+            text: 'Primero debes crear un trazo antes de calificar.',
+            confirmButtonColor: '#007BFF'
+        });
+        return;
+    }
+
+    var trazo_data = canvas.toDataURL('image/png');
+    $.ajax({
+        type: 'POST',
+        url: '/guardar_trazo',
+        data: { 'trazo_data': trazo_data },
+        success: function (response) {
+            console.log(response);
+            compararImagenes();  // Llama a compararImagenes después de recibir la respuesta
+        },
+        error: function (xhr, textStatus, errorThrown) {
+            console.error("Error al enviar trazo:", textStatus, errorThrown);
+        }
+    });
+}
+
+
+
+// Modifica el evento onclick del botón "Calificar" para llamar a la función modificarEnviarTrazoAlServidor()
+//document.getElementById("calificar").addEventListener("click", enviarTrazoAlServidor);
+
+
+
+// Nueva función para comparar imágenes después de enviar el trazo
+function compararImagenes() {
+    var textoActual = document.getElementById("palabra").textContent;
+
+    $.ajax({
+        type: 'POST',
+        url: "/comparar_imagenes",
+        contentType: 'application/json;charset=UTF-8',
+        data: JSON.stringify({ 'text': textoActual }),
+        success: function (response) {
+            console.log('Respuesta del servidor:', response);
+
+            if ('porcentaje_acierto' in response) {
+                alert('Porcentaje de acierto: ' + response.porcentaje_acierto + '%');
+                mostrarEstrellas();  // Llama a mostrarEstrellas después de mostrar la alerta
+            } else {
+                alert('Error: ' + response.error);
+            }
+        },
+        error: function (xhr, textStatus, errorThrown) {
+            console.error("Error al comparar imágenes:", textStatus, errorThrown);
+        }
+    });
+}
+
+
+function mostrarEstrellas() {
+            // Número de estrellas que deseas mostrar
+            var numEstrellas = 7;
+
+            // Contenedor para las estrellas
+            var estrellasContainer = document.createElement('div');
+            estrellasContainer.className = 'estrellas-container';
+            document.body.appendChild(estrellasContainer);
+
+            // Función para crear una estrella
+            function crearEstrella() {
+                var estrella = document.createElement('div');
+                estrella.className = 'estrella';
+                estrella.innerHTML = '★';
+                estrella.style.color = 'yellow';
+                // Añadir un sombreado negro para simular el borde
+                estrella.style.textShadow = '0 0 5px black';
+                
+
+                // Posición en el centro de la página web
+                var centerX = window.innerWidth / 50;
+                var centerY = window.innerHeight / 500; // Puedes ajustar este valor según sea necesario
+
+                // Posición aleatoria en un radio de 200px desde el centro
+                var offsetX = Math.random() * 200 - 100;
+                var offsetY = Math.random() * 200 - 250;
+
+                var size = Math.random() * 15 + 20;
+
+                estrella.style.left = centerX + offsetX + 'px';
+                estrella.style.top = centerY + offsetY + 'px';
+                estrella.style.fontSize = size + 'px';
+
+                // Añadir la estrella al contenedor
+                estrellasContainer.appendChild(estrella);
+
+                // Desaparecer la estrella después de unos segundos
+                setTimeout(function () {
+                    estrella.style.opacity = 0;
+                }, 2000);
+
+                // Eliminar la estrella después de la animación
+                estrella.addEventListener('transitionend', function () {
+                    estrella.remove();
+                });
+            }
+
+            // Crear varias estrellas
+            for (var i = 0; i < numEstrellas; i++) {
+                crearEstrella();
+            }
+
+            // Mostrar el contenedor de estrellas después de un breve retraso
+            setTimeout(function () {
+                estrellasContainer.style.opacity = 1;
+            }, 100);
+        }
+
+
+
+
+    </script>
+</body>
+
+</html>
