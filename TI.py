@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify, send_from_directory
-from PIL import Image, ImageDraw, ImageFont, ImageChops, ImageStat
+from PIL import Image, ImageDraw, ImageFont
 import textwrap
 import os
 import threading
@@ -9,10 +9,10 @@ import io
 import numpy as np
 from flask_cors import CORS
 
-
-#app = Flask(__name__)
 app = Flask(__name__, static_url_path='/static')
 CORS(app)
+
+
 
 @app.route('/')
 def index():
@@ -186,4 +186,6 @@ def comparar_imagenes():
 
 
 if __name__ == '__main__':
-   app.run(debug=True, host='0.0.0.0')
+    import uvicorn
+
+    uvicorn.run(app, host='0.0.0.0', port=8000, reload=True)
